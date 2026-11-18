@@ -22,7 +22,7 @@ These generators come from `tools-bundle` and `admin-bundle` in Austral 3.1. Mov
 
 ## Requirements
 
-- PHP 8.2 or higher
+- PHP 8.4 or higher
 - Symfony 7.4
 
 ## Installation

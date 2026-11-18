@@ -25,6 +25,10 @@
     "require": {
         "php": ">=8.2",
         "austral/contracts": "^4.0",
+        "austral/tools-bundle": "^4.0",
+        "symfony/filesystem": "^7.4",
+        "symfony/string": "^7.4",
+        "symfony/yaml": "^7.4",
         "symfony/config": "^7.4",
         "symfony/console": "^7.4",
         "symfony/dependency-injection": "^7.4",

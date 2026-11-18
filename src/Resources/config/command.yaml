@@ -5,6 +5,6 @@ services:
 
   ##### Command Make Entity
   austral.make.command:
-    class:        Austral\ToolsBundle\Command\MakeEntity
+    class:        Austral\MakerBundle\Command\MakeEntity
     tags:
       - { name: console.command, command: "austral:make:entity" }

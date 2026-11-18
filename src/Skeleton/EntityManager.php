@@ -11,23 +11,19 @@
 namespace ##ENTITY_MANAGER_NAMESPACE##;
 
 use ##ENTITY_NAMESPACE##\##NAME##;
-use ##REPOSITORY_NAMESPACE##\##NAME##Repository;
-
 use Austral\EntityBundle\EntityManager\EntityManager;
 
 /**
  * App ##NAME## EntityManager.
+ *
  * @author Matthieu Beurel <matthieu@austral.dev>
+ *
+ * @extends EntityManager<##NAME##>
+ *
  * @final
  */
 class ##NAME##EntityManager extends EntityManager
 {
-
-  /**
-   * @var ##NAME##Repository
-   */
-  protected $repository;
-
   /**
    * @param array $values
    *
@@ -37,6 +33,5 @@ class ##NAME##EntityManager extends EntityManager
   {
     return parent::create($values);
   }
-
 }
 

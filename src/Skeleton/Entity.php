@@ -12,26 +12,27 @@ namespace ##ENTITY_NAMESPACE##;
 
 use Austral\EntityBundle\Entity\Entity;
 use Austral\Contracts\Entity\EntityInterface;##ENTITY_USE##
+use ##REPOSITORY_NAMESPACE##\##NAME##Repository;
 use Doctrine\ORM\Mapping as ORM;
 use Ramsey\Uuid\Uuid;
 
 /**
  * App ##NAME## Entity.
+ *
  * @author Matthieu Beurel <matthieu@austral.dev>
-##ENTITY_ANNOTATION##
- * @ORM\Table(name="##TABLE_NAME##")
- * @ORM\Entity(repositoryClass="##REPOSITORY_NAMESPACE##\##NAME##Repository")
+ *
  * @final
  */
+#[ORM\Table(name: '##TABLE_NAME##')]
+#[ORM\Entity(repositoryClass: ##NAME##Repository::class)]##ENTITY_ATTRIBUTES##
 class ##NAME## extends Entity implements EntityInterface##ENTITY_INTERFACE##
-{
-##ENTITY_TRAITS##
+{##ENTITY_TRAITS##
   /**
    * @var string
-   * @ORM\Column(name="id", type="string", length=40)
-   * @ORM\Id
    */
-  protected $id;
+  #[ORM\Id]
+  #[ORM\Column(name: 'id', type: 'string', length: 40)]
+  protected string $id;
 ##ENTITY_FIELDS##
   /**
    * ##NAME## constructor

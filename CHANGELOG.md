@@ -8,9 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `austral:make:entity` command, moved from `austral/tools-bundle`.
+
 ### Changed
 
+- Generated entities use PHP attributes (Doctrine and Austral) instead of annotations.
+
 ### Fixed
+
+- Templates read from this bundle (`src/Skeleton`) instead of `AustralToolsBundle`.
+- Bundle services are loaded (`AustralMakerExtension`): the command was not registered.
+- Generated `$id` and `EntityManager::$repository` compatible with the typed properties of the parent classes.
+- Same class name everywhere for the master and its translation (`blog_post` → `BlogPost` / `BlogPostTranslate`).
 
 ### Removed
 

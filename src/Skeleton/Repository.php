@@ -14,10 +14,13 @@ use Austral\EntityBundle\Repository\EntityRepository;
 
 /**
  * App ##NAME## Repository.
+ *
  * @author Matthieu Beurel <matthieu@austral.dev>
+ *
+ * @extends EntityRepository<##NAME##>
+ *
  * @final
  */
 class ##NAME##Repository extends EntityRepository
 {
-
 }

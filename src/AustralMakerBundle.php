@@ -1,4 +1,5 @@
 <?php
+
 /*
  * This file is part of the Austral Maker Bundle package.
  *
@@ -9,16 +10,17 @@
  */
 
 namespace Austral\MakerBundle;
+
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
 
 /**
  * Austral Maker Bundle.
+ *
  * @author Matthieu Beurel <matthieu@austral.dev>
  */
 class AustralMakerBundle extends Bundle
 {
-
   /**
    * @param ContainerBuilder $container
    */
@@ -26,6 +28,4 @@ class AustralMakerBundle extends Bundle
   {
     parent::build($container);
   }
-  
-  
 }

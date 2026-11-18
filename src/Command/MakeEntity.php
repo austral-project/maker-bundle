@@ -1,8 +1,9 @@
 <?php
+
 /*
- * This file is part of the App package.
+ * This file is part of the Austral Maker Bundle package.
  *
- * (c) Yipikai <support@yipikai.studio>
+ * (c) Austral <support@austral.dev>
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
@@ -11,29 +12,30 @@
 namespace Austral\MakerBundle\Command;
 
 use Austral\ToolsBundle\Command\Base\Command;
-
-use Symfony\Component\Console\Helper\Helper;
 use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Question\ConfirmationQuestion;
+use Symfony\Component\Console\Question\Question;
 use Symfony\Component\Filesystem\Filesystem;
+
 use function Symfony\Component\String\u;
 
 /**
- * Austral Services status checker Command.
+ * Austral Make Entity Command: generates an Entity, its EntityManager and its Repository.
+ *
  * @author Matthieu Beurel <matthieu@austral.dev>
+ *
  * @final
  */
 class MakeEntity extends Command
 {
-
   /**
    * @var string
    */
-  protected string $titleCommande = "Generate Entity / EntityManager / Repository";
+  protected string $titleCommande = 'Generate Entity / EntityManager / Repository';
 
   /**
    * {@inheritdoc}
@@ -47,19 +49,20 @@ class MakeEntity extends Command
         new InputOption('--path-file', '-p', InputOption::VALUE_OPTIONAL, 'Path file'),
         new InputOption('--namespace', '', InputOption::VALUE_OPTIONAL, 'Namespace'),
       ])
-      ->addArgument("name", InputArgument::OPTIONAL, "Entity name")
+      ->addArgument('name', InputArgument::OPTIONAL, 'Entity name')
       ->setDescription($this->titleCommande)
-      ->setHelp(<<<'EOF'
-The <info>%command.name%</info> generate Entity / EntityManager / Repository file
+      ->setHelp(
+        <<<'EOF'
+          The <info>%command.name%</info> generate Entity / EntityManager / Repository file
 
-  <info>php %command.full_name%</info>
-EOF
+            <info>php %command.full_name%</info>
+          EOF
       )
     ;
   }
 
   /**
-   * @var array<mixed>
+   * @var array<string, string>
    */
   protected array $paths = [];
 
@@ -91,42 +94,42 @@ EOF
   /**
    * @var array<string, string|null>
    */
-  protected array $templateParameters = array(
-    "##php##"                               =>  "<?php",
-    "##NAME##"                              =>  null,
-    "##TABLE_NAME##"                        =>  null,
+  protected array $templateParameters = [
+    '##php##' => '<?php',
+    '##NAME##' => null,
+    '##TABLE_NAME##' => null,
 
-    "##ENTITY_NAMESPACE##"                  =>  null,
-    "##ENTITY_USE##"                        =>  null,
-    "##ENTITY_ANNOTATION##"                 =>  null,
-    "##ENTITY_INTERFACE##"                  =>  null,
-    "##ENTITY_TRAITS##"                     =>  null,
-    "##ENTITY_CONSTRUCT##"                  =>  null,
-    "##ENTITY_FIELDS##"                     =>  null,
-    "##ENTITY_DEFAULT_FIELD_TO_STRING##"    =>  null,
-    "##ENTITY_GETTER_SETTER##"              =>  null,
+    '##ENTITY_NAMESPACE##' => null,
+    '##ENTITY_USE##' => null,
+    '##ENTITY_ATTRIBUTES##' => null,
+    '##ENTITY_INTERFACE##' => null,
+    '##ENTITY_TRAITS##' => null,
+    '##ENTITY_CONSTRUCT##' => null,
+    '##ENTITY_FIELDS##' => null,
+    '##ENTITY_DEFAULT_FIELD_TO_STRING##' => null,
+    '##ENTITY_GETTER_SETTER##' => null,
 
-    "##ENTITY_MANAGER_NAMESPACE##"          =>  null,
+    '##ENTITY_MANAGER_NAMESPACE##' => null,
 
-    "##REPOSITORY_NAMESPACE##"              =>  null,
-  );
+    '##REPOSITORY_NAMESPACE##' => null,
+  ];
 
   /**
    * @var array<string, bool|array<string, bool>>
    */
-  protected array $propertiesUsed = array(
-    "timestampable"     =>  false,
-    "blockComponent"    =>  false,
-    "translate"         =>  false,
-    "domainFilter"      =>  false,
-    "url"               =>  false,
-    "treePage"          =>  false,
-    "file"              =>  false,
-    "cropper"           =>  false
-  );
+  protected array $propertiesUsed = [
+    'timestampable' => false,
+    'blockComponent' => false,
+    'translate' => false,
+    'domainFilter' => false,
+    'url' => false,
+    'treePage' => false,
+    'file' => false,
+    'cropper' => false,
+  ];
 
   /**
-   * @param InputInterface $input
+   * @param InputInterface  $input
    * @param OutputInterface $output
    *
    * @throws \Exception
@@ -136,51 +139,41 @@ EOF
     $this->input = $input;
     $this->output = $output;
 
-    $dirname = $this->input->getOption("dirname");
-    if(!$pathFile = $this->input->getOption("path-file"))
+    // The templates are shipped with this bundle (src/Skeleton)
+    $skeletonPath = \dirname(__DIR__).'/Skeleton';
+    if (!is_dir($skeletonPath))
     {
-      $kernelProjectDir = $this->container?->getParameter("kernel.project_dir") ?? "";
-      $kernelProjectDir = !is_string($kernelProjectDir) ? "" : $kernelProjectDir;
+      throw new \RuntimeException(sprintf('The skeleton directory "%s" does not exist.', $skeletonPath));
+    }
+    $this->skeletonPath = $skeletonPath;
+
+    $dirname = $this->input->getOption('dirname');
+    if (!$pathFile = $this->input->getOption('path-file'))
+    {
+      $kernelProjectDir = $this->container?->getParameter('kernel.project_dir') ?? '';
+      $kernelProjectDir = !is_string($kernelProjectDir) ? '' : $kernelProjectDir;
       $pathFile = "{$kernelProjectDir}/src";
     }
-    if(!$namespace = $this->input->getOption("namespace"))
+
+    if (!$namespace = $this->input->getOption('namespace'))
     {
-      $namespace = "App";
+      $namespace = 'App';
     }
 
-    $this->paths = array(
-      "Entity"          =>  "{$pathFile}/Entity".($dirname ? "/{$dirname}" : ""),
-      "EntityManager"   =>  "{$pathFile}/EntityManager".($dirname ? "/{$dirname}" : ""),
-      "Repository"      =>  "{$pathFile}/Repository".($dirname ? "/{$dirname}" : "")
-    );
-    $this->templateParameters["##ENTITY_NAMESPACE##"] = "{$namespace}\\Entity".($dirname ? "\\{$dirname}" : "");
-    $this->templateParameters["##ENTITY_MANAGER_NAMESPACE##"] = "{$namespace}\\EntityManager".($dirname ? "\\{$dirname}" : "");
-    $this->templateParameters["##REPOSITORY_NAMESPACE##"] = "{$namespace}\\Repository".($dirname ? "\\{$dirname}" : "");
+    $this->paths = [
+      'Entity' => "{$pathFile}/Entity".($dirname ? "/{$dirname}" : ''),
+      'EntityManager' => "{$pathFile}/EntityManager".($dirname ? "/{$dirname}" : ''),
+      'Repository' => "{$pathFile}/Repository".($dirname ? "/{$dirname}" : ''),
+    ];
+    $this->templateParameters['##ENTITY_NAMESPACE##'] = "{$namespace}\\Entity".($dirname ? "\\{$dirname}" : '');
+    $this->templateParameters['##ENTITY_MANAGER_NAMESPACE##'] = "{$namespace}\\EntityManager".($dirname ? "\\{$dirname}" : '');
+    $this->templateParameters['##REPOSITORY_NAMESPACE##'] = "{$namespace}\\Repository".($dirname ? "\\{$dirname}" : '');
 
-
-    $bundlesList = $this->container?->getParameter("kernel.bundles") ?? "";
+    $bundlesList = $this->container?->getParameter('kernel.bundles') ?? '';
     $bundlesList = !is_array($bundlesList) ? [] : $bundlesList;
     $this->bundlesList = $bundlesList;
 
-    foreach($this->bundlesList as $bundleName => $bundle)
-    {
-      if($bundleName === "AustralToolsBundle")
-      {
-        $reflectionClass = new \ReflectionClass($bundle);
-        if($reflectionFileName = $reflectionClass->getFileName())
-        {
-          $bundleDir = dirname($reflectionFileName);
-          $skeletonDir = "{$bundleDir}/Skeleton";
-          if(file_exists($skeletonDir) && is_dir($skeletonDir))
-          {
-            $this->skeletonPath = $skeletonDir;
-          }
-        }
-      }
-    }
-    if($this->skeletonPath) {
-      $this->create();
-    }
+    $this->create();
   }
 
   /**
@@ -195,31 +188,30 @@ EOF
     return array_key_exists($bundleName, $this->bundlesList);
   }
 
-
   /**
    * @throws \Exception
    */
   protected function create(): void
   {
-    if(!$name = $this->input?->getArgument("name"))
+    if (!$name = $this->input?->getArgument('name'))
     {
       $name = $this->askName();
     }
 
-    if($this->input?->getOption("all-properties"))
+    if ($this->input?->getOption('all-properties'))
     {
       /**
        * @var string $key
-       * @var mixed $value
+       * @var mixed  $value
        */
       foreach ($this->propertiesUsed as $key => $value)
       {
-        if($key === "domainFilter")
+        if ('domainFilter' === $key)
         {
-          $this->propertiesUsed[$key] = array(
-            "forAllDomainEnabled" =>  true,
-            "autoDomainId"        =>  true
-          );
+          $this->propertiesUsed[$key] = [
+            'forAllDomainEnabled' => true,
+            'autoDomainId' => true,
+          ];
         }
         else
         {
@@ -231,26 +223,30 @@ EOF
     {
       $this->askConfirmationQuestion(
         'Entity has created and updated date ? (y|o)',
-        "timestampable"
+        'timestampable'
       );
-      if($this->bundleIsEnabled("AustralEntityTranslateBundle"))
+
+      if ($this->bundleIsEnabled('AustralEntityTranslateBundle'))
       {
         $this->askUsedAustralEntityTranslateBundle();
       }
-      if($this->bundleIsEnabled("AustralContentBlockBundle"))
+
+      if ($this->bundleIsEnabled('AustralContentBlockBundle'))
       {
         $this->askUsedAustralContentBlockBundle();
       }
-      if($this->bundleIsEnabled("AustralHttpBundle"))
+
+      if ($this->bundleIsEnabled('AustralHttpBundle'))
       {
         $this->askUsedAustralHttpBundle();
       }
-      if($this->bundleIsEnabled("AustralEntityFileBundle"))
+
+      if ($this->bundleIsEnabled('AustralEntityFileBundle'))
       {
         $this->askUsedAustralEntityFileBundle();
       }
 
-      if($this->bundleIsEnabled("AustralSeoBundle"))
+      if ($this->bundleIsEnabled('AustralSeoBundle'))
       {
         $this->askUsedAustralSeoBundle();
       }
@@ -259,186 +255,195 @@ EOF
     $filesystem = new Filesystem();
     foreach ($this->paths as $path)
     {
-      if(!$filesystem->exists($path))
+      if (!$filesystem->exists($path))
       {
         $filesystem->mkdir($path);
       }
     }
 
     $this->generateFile($name);
-    if($this->propertiesUsed['translate'] === true)
+    if (true === $this->propertiesUsed['translate'])
     {
       $this->generateFile($name, true);
     }
-
   }
-
 
   /**
    * askQuestion
    *
-   * @param string $entitled
+   * @param string      $entitled
    * @param string|null $property
+   *
    * @return bool
    */
   protected function askConfirmationQuestion(string $entitled, ?string $property = null): bool
   {
     $helper = $this->getHelper('question');
-    if($helper instanceof QuestionHelper && $this->input && $this->output)
+    if ($helper instanceof QuestionHelper && $this->input && $this->output)
     {
-      if ($helper->ask($this->input, $this->output, new ConfirmationQuestion($entitled, false, "/^(y|o|1)/i"))) {
-        if($property !== null)
+      if ($helper->ask($this->input, $this->output, new ConfirmationQuestion($entitled, false, '/^(y|o|1)/i')))
+      {
+        if (null !== $property)
         {
           $this->propertiesUsed[$property] = true;
         }
+
         return true;
       }
     }
-    if($property !== null)
+    if (null !== $property)
     {
       $this->propertiesUsed[$property] = false;
     }
+
     return false;
   }
 
   /**
    * generateFile
-   * @param string $name
-   * @param bool $isTranslate
+   *
+   * @param string $name        entity name as typed (normalized to a class name: "blog_post" -> "BlogPost")
+   * @param bool   $isTranslate generates the translation entity ("BlogPostTranslate") of the entity
+   *
    * @return $this
    */
   protected function generateFile(string $name, bool $isTranslate = false): MakeEntity
   {
-    if($isTranslate)
-    {
-      $name .= "Translate";
-    }
+    // Same class name everywhere: file, class and references between the master and its translation
+    $masterName = u($name)->camel()->title()->toString();
+    $translateName = "{$masterName}Translate";
+    $className = $isTranslate ? $translateName : $masterName;
+
     $templateParameters = $this->templateParameters;
 
-    $templateParameters["##NAME##"] = u($name)->camel()->title();
-    $templateParameters["##TABLE_NAME##"] = "app_".u($name)->snake();
-    $templateParameters["##DATE##"] = (new \DateTime())->format("Y-m-d H:i:s");
+    $templateParameters['##NAME##'] = $className;
+    $templateParameters['##TABLE_NAME##'] = 'app_'.u($className)->snake();
+    $templateParameters['##DATE##'] = (new \DateTime())->format('Y-m-d H:i:s');
 
     $useClass = [];
     $traitsClass = [];
-    $annotationsClass = [];
+    $attributesClass = [];
     $interfacesClass = [];
     $getterSetter = [];
     $fields = [];
     $construct = [];
 
-    if($this->propertiesUsed["timestampable"])
+    if ($this->propertiesUsed['timestampable'])
     {
       $useClass[] = "use Austral\EntityBundle\Entity\Traits\EntityTimestampableTrait;";
-      $traitsClass[] = "use EntityTimestampableTrait;";
+      $traitsClass[] = 'use EntityTimestampableTrait;';
     }
 
     $templateParameters['##ENTITY_DEFAULT_FIELD_TO_STRING##'] = 'return $this->id;';
 
-    if($this->propertiesUsed["translate"] && $isTranslate === false)
+    if ($this->propertiesUsed['translate'] && false === $isTranslate)
     {
       $useClass[] = "use Austral\Contracts\Translate\TranslateMasterInterface;";
-      $useClass[] = "use Austral\EntityTranslateBundle\Entity\Traits\EntityTranslateMasterTrait;";
-      $useClass[] = "use Austral\EntityTranslateBundle\Annotation\Translate;";
+      if ($this->propertiesUsed['cropper'])
+      {
+        // Includes EntityTranslateMasterTrait: both cannot be used together (method collisions)
+        $useClass[] = "use Austral\EntityFileBundle\Entity\Traits\EntityFileCropperTranslateMasterTrait;";
+        $traitsClass[] = 'use EntityFileCropperTranslateMasterTrait;';
+      }
+      else
+      {
+        $useClass[] = "use Austral\EntityTranslateBundle\Entity\Traits\EntityTranslateMasterTrait;";
+        $traitsClass[] = 'use EntityTranslateMasterTrait;';
+      }
+      $useClass[] = "use Austral\EntityTranslateBundle\Attribute\Translate;";
       $useClass[] = "use Doctrine\Common\Collections\Collection;";
       $useClass[] = "use Doctrine\Common\Collections\ArrayCollection;";
-      $interfacesClass[] = "TranslateMasterInterface";
-      $annotationsClass[] = "* @Translate(relationClass=\"{$templateParameters["##ENTITY_NAMESPACE##"]}\\{$name}Translate\")";
-      $traitsClass[] = "use EntityTranslateMasterTrait;";
+      $interfacesClass[] = 'TranslateMasterInterface';
+      $attributesClass[] = "#[Translate(relationClass: {$translateName}::class)]";
 
       $fields[] = '/**
-   * @ORM\OneToMany(targetEntity="'.$templateParameters["##ENTITY_NAMESPACE##"].'\\'.$name.'Translate", mappedBy="master", cascade={"persist", "remove"})
+   * @var Collection<int, '.$translateName.'>
    */
+  #[ORM\OneToMany(targetEntity: '.$translateName.'::class, mappedBy: \'master\', cascade: [\'persist\', \'remove\'])]
   protected Collection $translates;';
       $construct[] = '$this->translates = new ArrayCollection();';
       $templateParameters['##ENTITY_DEFAULT_FIELD_TO_STRING##'] = 'return $this->getTranslateCurrent() ? $this->getTranslateCurrent()->__toString() : "";';
 
       $getterSetter[] = '/**
-   * @return '.$name.'Translate
+   * @return '.$translateName.'
    * @throws \Exception
    */
-  public function createNewTranslateByLanguage(): '.$name.'Translate
+  public function createNewTranslateByLanguage(): '.$translateName.'
   {
-    $translate = new '.$name.'Translate();
+    $translate = new '.$translateName.'();
     $translate->setMaster($this);
     $translate->setIsReferent(count($this->getTranslatesByLanguage()) > 0);
     $translate->setLanguage($this->getLanguageCurrent());
     $this->addTranslateByLanguage($translate);
     return $translate;
   }';
-
     }
-    elseif($isTranslate)
+    elseif ($isTranslate)
     {
       $useClass[] = "use Austral\Contracts\Translate\TranslateMasterInterface;";
       $useClass[] = "use Austral\Contracts\Translate\TranslateChildInterface;";
       $useClass[] = "use Austral\EntityTranslateBundle\Entity\Traits\EntityTranslateChildTrait;";
-      $interfacesClass[] = "TranslateChildInterface";
-      $traitsClass[] = "use EntityTranslateChildTrait;";
-      $nameMaster = str_replace("Translate", "", $name);
+      $interfacesClass[] = 'TranslateChildInterface';
+      $traitsClass[] = 'use EntityTranslateChildTrait;';
       $fields[] = '/**
-   * @var '.$nameMaster.'|TranslateMasterInterface
-   *
-   * @ORM\ManyToOne(targetEntity="'.$templateParameters["##ENTITY_NAMESPACE##"].'\\'.$nameMaster.'", inversedBy="translates", cascade={"persist", "remove"})
-   * @ORM\JoinColumn(name="master_id", referencedColumnName="id")
+   * @var '.$masterName.'|TranslateMasterInterface
    */
+  #[ORM\ManyToOne(targetEntity: '.$masterName.'::class, inversedBy: \'translates\', cascade: [\'persist\', \'remove\'])]
+  #[ORM\JoinColumn(name: \'master_id\', referencedColumnName: \'id\')]
   protected TranslateMasterInterface $master;';
-
     }
 
-    if($this->propertiesUsed["blockComponent"])
+    if ($this->propertiesUsed['blockComponent'])
     {
       $useClass[] = "use Austral\EntityBundle\Entity\Interfaces\ComponentsInterface;";
-      $interfacesClass[] = "ComponentsInterface";
+      $interfacesClass[] = 'ComponentsInterface';
 
-      if($this->propertiesUsed["translate"] && $isTranslate === false)
+      if ($this->propertiesUsed['translate'] && false === $isTranslate)
       {
         $useClass[] = "use Austral\EntityTranslateBundle\Entity\Traits\EntityTranslateMasterComponentsTrait;";
-        $traitsClass[] = "use EntityTranslateMasterComponentsTrait;";
+        $traitsClass[] = 'use EntityTranslateMasterComponentsTrait;';
       }
       else
       {
         $useClass[] = "use Austral\ContentBlockBundle\Entity\Traits\EntityComponentsTrait;";
-        $traitsClass[] = "use EntityComponentsTrait;";
+        $traitsClass[] = 'use EntityComponentsTrait;';
       }
     }
 
-    if($isTranslate === false)
+    if (false === $isTranslate)
     {
-      if(is_array($this->propertiesUsed['domainFilter']))
+      if (is_array($this->propertiesUsed['domainFilter']))
       {
-        $useClass[] = "use Austral\HttpBundle\Annotation\DomainFilter;";
-        $annotationsClass[] = "* @DomainFilter(forAllDomainEnabled=".($this->propertiesUsed['domainFilter']['forAllDomainEnabled'] ? "true" : "false").", autoDomainId=".($this->propertiesUsed['domainFilter']['autoDomainId'] ? "true" : "false").")";
+        $useClass[] = "use Austral\Contracts\Domain\FilterByDomainInterface;";
+        $useClass[] = "use Austral\HttpBundle\Attribute\DomainFilter;";
         $useClass[] = "use Austral\HttpBundle\Entity\Traits\FilterByDomainTrait;";
-        $traitsClass[] = "use FilterByDomainTrait;";
+        $interfacesClass[] = 'FilterByDomainInterface';
+        $attributesClass[] = '#[DomainFilter(autoDomainId: '.($this->propertiesUsed['domainFilter']['autoDomainId'] ? 'true' : 'false').', forAllDomainEnabled: '.($this->propertiesUsed['domainFilter']['forAllDomainEnabled'] ? 'true' : 'false').')]';
+        $traitsClass[] = 'use FilterByDomainTrait;';
       }
 
-      if($this->propertiesUsed['file'])
+      if ($this->propertiesUsed['file'])
       {
         $useClass[] = "use Austral\Contracts\File\FileInterface;";
         $useClass[] = "use Austral\EntityFileBundle\Entity\Traits\EntityFileTrait;";
-        $interfacesClass[] = "FileInterface";
-        $traitsClass[] = "use EntityFileTrait;";
+        $interfacesClass[] = 'FileInterface';
+        $traitsClass[] = 'use EntityFileTrait;';
       }
 
-      if($this->propertiesUsed["cropper"])
+      // With translations, the master delegates the cropper data to its translation
+      // (EntityFileCropperTranslateMasterTrait, added above)
+      if ($this->propertiesUsed['cropper'] && !$this->propertiesUsed['translate'])
       {
-        if($this->propertiesUsed["translate"])
-        {
-          $useClass[] = "use Austral\EntityTranslateBundle\Entity\Traits\EntityTranslateMasterFileCropperTrait;";
-          $traitsClass[] = "use EntityTranslateMasterFileCropperTrait;";
-        }
-        else
-        {
-          $useClass[] = "use Austral\EntityFileBundle\Entity\Traits\EntityFileCropperTrait;";
-          $traitsClass[] = "use EntityFileCropperTrait;";
-        }
+        $useClass[] = "use Austral\EntityFileBundle\Entity\Interfaces\CropperInterface;";
+        $useClass[] = "use Austral\EntityFileBundle\Entity\Traits\EntityFileCropperTrait;";
+        $interfacesClass[] = 'CropperInterface';
+        $traitsClass[] = 'use EntityFileCropperTrait;';
       }
 
-      if($this->propertiesUsed['url'])
+      if ($this->propertiesUsed['url'])
       {
-        $useClass[] = "use Austral\SeoBundle\Annotation\UrlParameterObject;";
-        $annotationsClass[] = "* @UrlParameterObject(methodGenerateLastPath=\"stringToLastPath\")";
+        $useClass[] = "use Austral\SeoBundle\Attribute\UrlParameterObject;";
+        $attributesClass[] = "#[UrlParameterObject(methodGenerateLastPath: 'stringToLastPath')]";
         $getterSetter[] = '/**
    * @return string|null
    * @throws \Exception
@@ -448,110 +453,115 @@ EOF
     return $this->__toString();
   }';
         $useClass[] = "use Austral\SeoBundle\Entity\Traits\UrlParameterTrait;";
-        $traitsClass[] = "use UrlParameterTrait;";
+        $traitsClass[] = 'use UrlParameterTrait;';
       }
-      if($this->propertiesUsed['treePage'])
+      if ($this->propertiesUsed['treePage'])
       {
         $useClass[] = "use Austral\SeoBundle\Entity\Interfaces\TreePageInterface;";
         $useClass[] = "use Austral\SeoBundle\Entity\Traits\TreePageParentTrait;";
-        $interfacesClass[] = "TreePageInterface";
-        $traitsClass[] = "use TreePageParentTrait;";
+        $interfacesClass[] = 'TreePageInterface';
+        $traitsClass[] = 'use TreePageParentTrait;';
       }
     }
-    elseif($isTranslate)
+    elseif ($isTranslate)
     {
-      if($this->propertiesUsed["cropper"])
+      if ($this->propertiesUsed['cropper'])
       {
+        $useClass[] = "use Austral\EntityFileBundle\Entity\Interfaces\CropperInterface;";
         $useClass[] = "use Austral\EntityFileBundle\Entity\Traits\EntityFileCropperTrait;";
-        $traitsClass[] = "use EntityFileCropperTrait;";
+        $interfacesClass[] = 'CropperInterface';
+        $traitsClass[] = 'use EntityFileCropperTrait;';
       }
     }
 
-    if($this->propertiesUsed['file'])
+    if ($this->propertiesUsed['file'])
     {
-      $useClass[] = "use Austral\EntityFileBundle\Annotation as AustralFile;";
+      // For the file fields: #[AustralFile\Path(...)], #[AustralFile\UploadParameters(...)], ...
+      $useClass[] = "use Austral\EntityFileBundle\Attribute as AustralFile;";
     }
 
-    if(count($useClass) > 0) {
-      $templateParameters["##ENTITY_USE##"] = "
-".implode("
-", $useClass)."
-";
-    }
-
-    if($interfacesClass) {
-      $templateParameters["##ENTITY_INTERFACE##"] = ", ".implode(", ", $interfacesClass);
-    }
-
-    if($annotationsClass) {
-      $templateParameters["##ENTITY_ANNOTATION##"] = "
- ".implode("
- ", $annotationsClass)."
- ";
-    }
-    else
+    if (count($useClass) > 0)
     {
-      $templateParameters["##ENTITY_ANNOTATION##"] = " *";
+      $templateParameters['##ENTITY_USE##'] = '
+'.implode('
+', $useClass);
     }
 
-    if($traitsClass) {
-      $templateParameters["##ENTITY_TRAITS##"] = "
-  ".implode("
-  ", $traitsClass)."
-  ";
+    if ($interfacesClass)
+    {
+      $templateParameters['##ENTITY_INTERFACE##'] = ', '.implode(', ', $interfacesClass);
     }
 
-    if($getterSetter) {
-      $templateParameters["##ENTITY_GETTER_SETTER##"] = "
-  ".implode("
-
-  ", $getterSetter)."
-  ";
+    if ($attributesClass)
+    {
+      $templateParameters['##ENTITY_ATTRIBUTES##'] = '
+'.implode('
+', $attributesClass);
     }
 
-    if($fields) {
-      $templateParameters["##ENTITY_FIELDS##"] = "
-  ".implode("
-  ", $fields)."
-  ";
+    if ($traitsClass)
+    {
+      $templateParameters['##ENTITY_TRAITS##'] = '
+  '.implode('
+  ', $traitsClass).'
+';
     }
 
-    if($construct) {
-      $templateParameters["##ENTITY_CONSTRUCT##"] = implode("
-    ", $construct);
+    if ($getterSetter)
+    {
+      $templateParameters['##ENTITY_GETTER_SETTER##'] = '
+  '.implode('
+
+  ', $getterSetter).'
+';
     }
 
-    $filePathEntity = "{$this->paths["Entity"]}/{$templateParameters["##NAME##"]}.php";
+    if ($fields)
+    {
+      $templateParameters['##ENTITY_FIELDS##'] = '
+  '.implode('
+
+  ', $fields).'
+';
+    }
+
+    if ($construct)
+    {
+      $templateParameters['##ENTITY_CONSTRUCT##'] = implode('
+    ', $construct);
+    }
+
+    $filePathEntity = "{$this->paths['Entity']}/{$className}.php";
     $fileContent = file_get_contents("{$this->skeletonPath}/Entity.php");
-    if(is_string($fileContent))
+    if (is_string($fileContent))
     {
       $fileContent = str_replace(array_keys($templateParameters), array_values($templateParameters), $fileContent);
-      if($this->writeFile($filePathEntity, "Entity/{$templateParameters["##NAME##"]}.php"))
+      if ($this->writeFile($filePathEntity, "Entity/{$className}.php"))
       {
         file_put_contents($filePathEntity, $fileContent);
       }
     }
 
-    if($isTranslate === false)
+    if (false === $isTranslate)
     {
-      $filePathEntityManager = "{$this->paths["EntityManager"]}/{$templateParameters["##NAME##"]}EntityManager.php";
+      $filePathEntityManager = "{$this->paths['EntityManager']}/{$className}EntityManager.php";
       $fileContent = file_get_contents("{$this->skeletonPath}/EntityManager.php");
-      if(is_string($fileContent))
+      if (is_string($fileContent))
       {
         $fileContent = str_replace(array_keys($templateParameters), array_values($templateParameters), $fileContent);
-        if ($this->writeFile($filePathEntityManager, "EntityManager/{$templateParameters["##NAME##"]}EntityManager.php"))
+        if ($this->writeFile($filePathEntityManager, "EntityManager/{$className}EntityManager.php"))
         {
           file_put_contents($filePathEntityManager, $fileContent);
         }
       }
     }
 
-    $filePathRepository = "{$this->paths["Repository"]}/{$templateParameters["##NAME##"]}Repository.php";
+    $filePathRepository = "{$this->paths['Repository']}/{$className}Repository.php";
     $fileContent = file_get_contents("{$this->skeletonPath}/Repository.php");
-    if(is_string($fileContent))
+    if (is_string($fileContent))
     {
       $fileContent = str_replace(array_keys($templateParameters), array_values($templateParameters), $fileContent);
-      if($this->writeFile($filePathRepository, "Repository/{$templateParameters["##NAME##"]}Repository.php"))
+      if ($this->writeFile($filePathRepository, "Repository/{$className}Repository.php"))
       {
         file_put_contents($filePathRepository, $fileContent);
       }
@@ -565,107 +575,116 @@ EOF
    *
    * @param string $filePath
    * @param string $name
+   *
    * @return bool
    */
   public function writeFile(string $filePath, string $name): bool
   {
-    if(file_exists($filePath))
+    if (file_exists($filePath))
     {
       return $this->askConfirmationQuestion("File {$name} already exists, do you want to overwrite the file ? (y|o)");
     }
+
     return true;
   }
 
-
   /**
    * askName
+   *
    * @return string
+   *
    * @throws \Exception
    */
   protected function askName(): string
   {
     $helper = $this->getHelper('question');
-    $name = "";
-    if($helper instanceof QuestionHelper && $this->input && $this->output)
+    $name = '';
+
+    if ($helper instanceof QuestionHelper && $this->input && $this->output)
     {
-      $question = new ConfirmationQuestion('Entity Name ?', false);
+      $question = new Question('Entity Name ? ');
       $question->setNormalizer(function ($value) {
         return $value ? trim($value) : '';
       });
-      if (!$name = $helper->ask($this->input, $this->output, $question)) {
-        throw new \Exception("Name is required");
+
+      if (!$name = $helper->ask($this->input, $this->output, $question))
+      {
+        throw new \Exception('Name is required');
       }
     }
+
     return $name;
   }
 
   /**
    * askUsedAustralEntityTranslateBundle
+   *
    * @return void
    */
   protected function askUsedAustralEntityTranslateBundle(): void
   {
     $this->askConfirmationQuestion(
       'This Entity is translatable ? (y|o)',
-      "translate"
+      'translate'
     );
   }
 
   /**
    * askUsedAustralContentBlockBundle
+   *
    * @return void
    */
   protected function askUsedAustralContentBlockBundle(): void
   {
     $this->askConfirmationQuestion(
       'This Entity has BlockComponent ? (y|o)',
-      "blockComponent"
+      'blockComponent'
     );
   }
 
   /**
    * askUsedAustralHttpBundle
+   *
    * @return void
    */
   protected function askUsedAustralHttpBundle(): void
   {
-    if($this->askConfirmationQuestion('This Entity has a link with domain ? (y|o)'))
+    if ($this->askConfirmationQuestion('This Entity has a link with domain ? (y|o)'))
     {
-      $this->propertiesUsed["domainFilter"] = array(
-        "forAllDomainEnabled" =>  false,
-        "autoDomainId"        =>  false
-      );
-      $this->propertiesUsed["domainFilter"]["forAllDomainEnabled"] = $this->askConfirmationQuestion('All domain is enabled ? (y|o)');
-      $this->propertiesUsed["domainFilter"]["autoDomainId"] = $this->askConfirmationQuestion('The domain is attached automatically ? (y|o)');
+      $this->propertiesUsed['domainFilter'] = [
+        'forAllDomainEnabled' => false,
+        'autoDomainId' => false,
+      ];
+      $this->propertiesUsed['domainFilter']['forAllDomainEnabled'] = $this->askConfirmationQuestion('All domain is enabled ? (y|o)');
+      $this->propertiesUsed['domainFilter']['autoDomainId'] = $this->askConfirmationQuestion('The domain is attached automatically ? (y|o)');
     }
   }
 
   /**
    * askUsedAustralEntityFileBundle
+   *
    * @return void
    */
   protected function askUsedAustralEntityFileBundle(): void
   {
-    if($this->askConfirmationQuestion('This Entity has files ? (y|o)'))
+    if ($this->askConfirmationQuestion('This Entity has files ? (y|o)'))
     {
-      $this->propertiesUsed["file"] = true;
-      $this->propertiesUsed["cropper"] = $this->askConfirmationQuestion('This files use crop ? (y|o)');
+      $this->propertiesUsed['file'] = true;
+      $this->propertiesUsed['cropper'] = $this->askConfirmationQuestion('This files use crop ? (y|o)');
     }
   }
 
   /**
    * askUsedAustralSeoBundle
+   *
    * @return void
    */
   protected function askUsedAustralSeoBundle(): void
   {
-    if($this->askConfirmationQuestion('This Entity has a url ? (y|o)'))
+    if ($this->askConfirmationQuestion('This Entity has a url ? (y|o)'))
     {
-      $this->propertiesUsed["url"] = true;
-      $this->propertiesUsed["treePage"] = $this->askConfirmationQuestion('This url has a link with WebsitePage ? (y|o)');
+      $this->propertiesUsed['url'] = true;
+      $this->propertiesUsed['treePage'] = $this->askConfirmationQuestion('This url has a link with WebsitePage ? (y|o)');
     }
   }
-
-
-
 }

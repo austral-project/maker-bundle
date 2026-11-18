@@ -2,9 +2,9 @@
 
 [![Version](https://img.shields.io/packagist/v/austral/maker-bundle?label=version)](https://packagist.org/packages/austral/maker-bundle)
 [![CI](https://github.com/austral-project/maker-bundle/actions/workflows/ci.yml/badge.svg?branch=4.x)](https://github.com/austral-project/maker-bundle/actions/workflows/ci.yml)
-[![PHP](https://img.shields.io/packagist/dependency-v/austral/maker-bundle/php)](https://packagist.org/packages/austral/maker-bundle)
+[![PHP](https://img.shields.io/packagist/dependency-v/austral/maker-bundle/php?version=4.x-dev)](https://packagist.org/packages/austral/maker-bundle)
 [![Symfony](https://img.shields.io/badge/symfony-7.4-black)](https://symfony.com/releases/7.4)
-[![License](https://img.shields.io/packagist/l/austral/maker-bundle)](LICENSE)
+[![License](https://img.shields.io/github/license/austral-project/maker-bundle)](LICENSE)
 
 Code generators for Austral: entities, admin modules and project skeleton files. Development only.
 

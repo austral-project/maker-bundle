@@ -28,7 +28,7 @@ final class MakeEntityTest extends TestCase
 
   protected function tearDown(): void
   {
-    (new Filesystem())->remove($this->directory);
+    new Filesystem()->remove($this->directory);
   }
 
   /**

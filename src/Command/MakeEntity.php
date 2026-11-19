@@ -318,7 +318,7 @@ class MakeEntity extends Command
 
     $templateParameters['##NAME##'] = $className;
     $templateParameters['##TABLE_NAME##'] = 'app_'.u($className)->snake();
-    $templateParameters['##DATE##'] = (new \DateTime())->format('Y-m-d H:i:s');
+    $templateParameters['##DATE##'] = new \DateTime()->format('Y-m-d H:i:s');
 
     $useClass = [];
     $traitsClass = [];
